@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Todo List</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{font-family:'Inter',sans-serif}
+.todo-item{transition:all.2s}
+body{
+  background: linear-gradient(135deg, #dcfce7 0%, #dbeafe 35%, #e0e7ff 65%, #f3e8ff 100%);
+  background-attachment: fixed;
+}
+</style>
+</head>
+<body class="min-h-screen flex justify-center pt-12 px-4 pb-10">
+
+<div class="w-full max-w-[520px]">
+  <div class="mb-8">
+    <h1 class="text-[32px] font-bold text-[#111]">Tugas Saya</h1>
+    <p id="date" class="text-[13px] text-zinc-600 mt-1 font-medium"></p>
+  </div>
+
+  <!-- INPUT -->
+  <div class="bg-white/90 backdrop-blur border border-white rounded-[20px] p-4 shadow-lg shadow-blue-100">
+    <div class="flex gap-3">
+      <input id="input" type="text" placeholder="Tulis tugas baru..." class="flex-1 outline-none text-[15px] bg-transparent">
+      <button onclick="addTodo()" class="bg-[#16a34a] hover:bg-[#15803d] text-white px-5 py-2 rounded-full text-[13px] font-bold shadow-md transition">Add</button>
+    </div>
+  </div>
+
+  <!-- FILTER -->
+  <div class="flex gap-2 mt-6 flex-wrap">
+    <button onclick="setFilter('all')" id="f-all" class="px-4 py-1.5 rounded-full text-[12px] font-semibold bg-[#111] text-white shadow">Semua</button>
+    <button onclick="setFilter('active')" id="f-active" class="px-4 py-1.5 rounded-full text-[12px] font-semibold bg-white/90 border shadow-sm">Masih Dikerjakan</button>
+    <button onclick="setFilter('done')" id="f-done" class="px-4 py-1.5 rounded-full text-[12px] font-semibold bg-white/90 border shadow-sm">Selesai</button>
+    <button onclick="setFilter('revision')" id="f-revision" class="px-4 py-1.5 rounded-full text-[12px] font-semibold bg-white/90 border shadow-sm">Revisi</button>
+  </div>
+
+  <div id="list" class="mt-4 bg-white/95 backdrop-blur border border-white rounded-[20px] overflow-hidden divide-y divide-zinc-100 shadow-lg shadow-blue-100"></div>
+  <div id="empty" class="hidden mt-4 bg-white/80 border border-dashed border-zinc-300 rounded-[20px] py-14 text-center text-zinc-500 text-[13px] shadow">Belum ada tugas</div>
+
+  <!-- REKAP BAWAH - DIBESARKAN -->
+  <div class="mt-6 flex justify-center">
+    <p id="counter" class="text-[13px] font-bold text-zinc-700 bg-white/90 backdrop-blur px-5 py-2.5 rounded-full border border-white shadow-md shadow-blue-100"></p>
+  </div>
+</div>
+
+<script>
+let todos = JSON.parse(localStorage.getItem('todo-final-v2')) || [];
+let filter = 'all';
+
+document.getElementById('date').innerText = new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+function save(){ localStorage.setItem('todo-final-v2', JSON.stringify(todos)); render(); }
+
+function addTodo(){
+  const input = document.getElementById('input');
+  if(!input.value.trim()) return;
+  todos.unshift({ id: Date.now(), text: input.value.trim(), status: 'active' });
+  input.value=''; save();
+}
+
+function setStatus(id, status){
+  todos = todos.map(t=> t.id===id? {...t, status: status} : t);
+  save();
+}
+function remove(id){ todos = todos.filter(t=> t.id!==id); save(); }
+function edit(id){
+  const t = todos.find(x=>x.id===id);
+  const newText = prompt('Ubah tugas:', t.text);
+  if(newText && newText.trim()){ todos = todos.map(x=> x.id===id? {...x, text:newText.trim()} : x); save(); }
+}
+
+function setFilter(f){
+  filter = f;
+  ['all','active','done','revision'].forEach(k=>{
+    document.getElementById('f-'+k).className = f===k? 'px-4 py-1.5 rounded-full text-[12px] font-semibold bg-[#111] text-white shadow' : 'px-4 py-1.5 rounded-full text-[12px] font-semibold bg-white/90 border border-zinc-200 text-zinc-600 shadow-sm';
+  });
+  render();
+}
+
+function render(){
+  const list = document.getElementById('list');
+  const empty = document.getElementById('empty');
+  let filtered = todos.filter(t=>{
+    if(filter==='all') return true;
+    return t.status === filter;
+  });
+
+  const cActive = todos.filter(t=>t.status==='active').length;
+  const cDone = todos.filter(t=>t.status==='done').length;
+  const cRevision = todos.filter(t=>t.status==='revision').length;
+  document.getElementById('counter').innerHTML = `<span class="text-red-600">${cActive} masih dikerjakan</span> <span class="text-zinc-400 mx-1">•</span> <span class="text-green-600">${cDone} selesai</span> <span class="text-zinc-400 mx-1">•</span> <span class="text-amber-600">${cRevision} revisi</span>`;
+
+  if(filtered.length===0){ list.classList.add('hidden'); empty.classList.remove('hidden'); list.innerHTML=''; return; }
+  empty.classList.add('hidden'); list.classList.remove('hidden');
+
+  list.innerHTML = filtered.map(t=>{
+    const isDone = t.status === 'done';
+    const isRevision = t.status === 'revision';
+
+    let statusColor, badge, actionBtn, circleClass, circleIcon;
+
+    if(isDone){
+      statusColor = 'border-l-[4px] border-l-[#16a34a] bg-green-50/40';
+      badge = '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a] text-white">SELESAI</span>';
+      actionBtn = `<button onclick="setStatus(${t.id}, 'revision')" class="text-[11px] font-semibold px-3 py-1 rounded-full bg-amber-500 text-white hover:bg-amber-600">Pindahkan ke Revisi</button>`;
+      circleClass = 'bg-[#16a34a] border-[#16a34a] text-white';
+      circleIcon = '✓';
+    } else if(isRevision){
+      statusColor = 'border-l-[4px] border-l-amber-500 bg-amber-50/50';
+      badge = '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">REVISI</span>';
+      actionBtn = `<button onclick="setStatus(${t.id}, 'done')" class="text-[11px] font-semibold px-3 py-1 rounded-full bg-[#16a34a] text-white hover:bg-[#15803d]">Pindahkan ke Selesai</button>`;
+      circleClass = 'bg-amber-500 border-amber-500 text-white';
+      circleIcon = '↺';
+    } else {
+      statusColor = 'border-l-[4px] border-l-[#ef4444] bg-red-50/30';
+      badge = '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ef4444] text-white">BELUM</span>';
+      actionBtn = `<button onclick="setStatus(${t.id}, 'done')" class="text-[11px] font-semibold px-3 py-1 rounded-full bg-[#16a34a] text-white hover:bg-[#15803d]">Pindahkan ke Selesai</button>`;
+      circleClass = 'bg-white border-[#ef4444] text-[#ef4444]';
+      circleIcon = '';
+    }
+
+    return `
+    <div class="todo-item flex items-center gap-3 px-4 py-3.5 ${statusColor}">
+      <button onclick="${isDone? `setStatus(${t.id}, 'revision')` : `setStatus(${t.id}, 'done')`}" class="w-6 h-6 rounded-full flex items-center justify-center border-2 ${circleClass}">${circleIcon}</button>
+      <div class="flex-1">
+        <p onclick="edit(${t.id})" class="text-[14px] cursor-pointer ${isDone?'line-through text-zinc-400':'text-zinc-900 font-medium'}">${t.text}</p>
+        <div class="mt-1">${badge}</div>
+      </div>
+      <div class="flex flex-col gap-1 items-end">
+        ${actionBtn}
+        <div class="flex gap-1">
+          <button onclick="edit(${t.id})" class="w-7 h-7 rounded-full bg-blue-500 text-white text-[12px]">✎</button>
+          <button onclick="remove(${t.id})" class="w-7 h-7 rounded-full bg-red-500 text-white text-[12px]">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('input').addEventListener('keydown', e=>{ if(e.key==='Enter') addTodo(); });
+render();
+</script>
+</body>
+</html>
